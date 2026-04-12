@@ -8,6 +8,7 @@ import (
 
 	"golang/internal/user"
 	"golang/pkg/config"
+	"golang/pkg/mailer"
 
 	_ "golang/docs"
 
@@ -32,6 +33,8 @@ func main() {
 
 	db.AutoMigrate(&user.Role{}, &user.User{}, &user.UserProfile{}, &user.UserToken{})
 
+	mailService := mailer.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass)
+
 	userRepo := user.NewUserRepository(db)
 
 	fmt.Println("Seeding roles...")
@@ -39,11 +42,12 @@ func main() {
 		log.Fatalf("Failed to seed roles: %v", err)
 	}
 
-	userService := user.NewUserService(userRepo)
-	userHandler := user.NewUserHandler(userService)
+	userService := user.NewUserService(userRepo, mailService)
+	userHandler := user.NewUserHandler(userService, cfg.AppURL)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/users/register", userHandler.RegisterHandler)
+	mux.HandleFunc("/api/v1/users/confirm-email", userHandler.ConfirmEmailHandler)
 	mux.HandleFunc("/docs/", httpSwagger.WrapHandler)
 
 	fmt.Printf("Server is running on port %s\n", cfg.Port)

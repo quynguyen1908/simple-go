@@ -27,6 +27,8 @@ Simple Go project scaffold.
 │   │   └── config.go
 │   ├── constants/
 │   │   └── constants.go
+│   ├── mailer/
+│   │   └── mailer.go
 │   └── response/
 │       └── response.go
 ├── scripts/
@@ -39,7 +41,8 @@ Simple Go project scaffold.
 
 ## API Endpoints
 
-- `POST /api/users/register` - Register
+- `POST /api/v1/users/register` - Register
+- `GET /api/v1/users/confirm-email` - Email Confirmation
 
 
 ## Development Commands

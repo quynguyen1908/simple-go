@@ -5,14 +5,22 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type UserRepository interface {
 	SeedRoles(ctx context.Context) error
 	CheckExists(ctx context.Context, email, username string) (bool, bool, error)
+	ConfirmUserEmail(ctx context.Context, userID uuid.UUID) error
+
 	GetRoleByName(ctx context.Context, roleName string) (*Role, error)
+	GetToken(ctx context.Context, tokenValue, tokenType string) (*UserToken, error)
+
 	CreateUser(ctx context.Context, user *User) error
+	CreateUserToken(ctx context.Context, token *UserToken) error
+
+	DeleteToken(ctx context.Context, tokenID uuid.UUID) error
 }
 
 type userRepository struct {
@@ -65,6 +73,12 @@ func (r *userRepository) CheckExists(ctx context.Context, email, username string
 	return emailExists, usernameExists, nil
 }
 
+func (r *userRepository) ConfirmUserEmail(ctx context.Context, userID uuid.UUID) error {
+	return r.db.WithContext(ctx).Model(&User{}).
+		Where("id = ?", userID).
+		Update("email_confirmed", true).Error
+}
+
 func (r *userRepository) GetRoleByName(ctx context.Context, roleName string) (*Role, error) {
 	var role Role
 
@@ -82,6 +96,30 @@ func (r *userRepository) GetRoleByName(ctx context.Context, roleName string) (*R
 	return &role, nil
 }
 
+func (r *userRepository) GetToken(ctx context.Context, tokenValue, tokenType string) (*UserToken, error) {
+	var token UserToken
+
+	err := r.db.WithContext(ctx).
+		Where("token_value = ? AND token_type = ?", tokenValue, tokenType).
+		First(&token).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTokenNotFound
+		}
+		return nil, err
+	}
+
+	return &token, nil
+}
+
 func (r *userRepository) CreateUser(ctx context.Context, user *User) error {
 	return r.db.WithContext(ctx).Create(user).Error
+}
+
+func (r *userRepository) CreateUserToken(ctx context.Context, token *UserToken) error {
+	return r.db.WithContext(ctx).Create(token).Error
+}
+
+func (r *userRepository) DeleteToken(ctx context.Context, tokenID uuid.UUID) error {
+	return r.db.WithContext(ctx).Delete(&UserToken{}, "id = ?", tokenID).Error
 }

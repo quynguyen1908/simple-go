@@ -6,7 +6,17 @@ const (
 )
 
 const (
-	StatusActive = "active"
+	UserStatusActive = "active"
+)
+
+const (
+	ProviderSystem = "system"
+	ProviderGoogle = "google"
+)
+
+const (
+	TokenTypeEmailConfirmation = "email_confirmation"
+	TokenTypeRefresh           = "refresh"
 )
 
 const (

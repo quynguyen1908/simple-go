@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -19,6 +20,12 @@ type AppConfig struct {
 	DBTimezone string
 
 	JWTSecretKey string
+
+	SMTPHost string
+	SMTPPort int
+	SMTPUser string
+	SMTPPass string
+	AppURL   string
 }
 
 func LoadConfig() *AppConfig {
@@ -26,6 +33,8 @@ func LoadConfig() *AppConfig {
 	if err != nil {
 		log.Println("No .env file found, relying on environment variables")
 	}
+
+	port, _ := strconv.Atoi(getEnvOrDefault("SMTP_PORT", "587"))
 
 	return &AppConfig{
 		Port: getEnvOrDefault("PORT", "8080"),
@@ -39,6 +48,12 @@ func LoadConfig() *AppConfig {
 		DBTimezone: os.Getenv("DB_TIMEZONE"),
 
 		JWTSecretKey: os.Getenv("JWT_SECRET_KEY"),
+
+		SMTPHost: getEnvOrDefault("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort: port,
+		SMTPUser: os.Getenv("SMTP_USER"),
+		SMTPPass: os.Getenv("SMTP_PASS"),
+		AppURL:   getEnvOrDefault("APP_URL", "http://localhost:8080"),
 	}
 }
 

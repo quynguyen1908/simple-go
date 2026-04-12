@@ -47,6 +47,35 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/v1/users/confirm-email:
+    get:
+      consumes:
+      - application/json
+      description: Confirm a user's email address using a verification token
+      parameters:
+      - description: Email verification token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Confirm user email
+      tags:
+      - Users
   /api/v1/users/register:
     post:
       consumes:
