@@ -9,6 +9,7 @@ import (
 
 type Mailer interface {
 	SendVerificationEmail(toEmail string, token string, appURL string) error
+	SendPasswordResetEmail(toEmail string, token string, appURL string) error
 }
 
 type mailer struct {
@@ -28,7 +29,8 @@ func (m *mailer) SendVerificationEmail(toEmail string, token string, appURL stri
 	msg.SetHeader("To", toEmail)
 	msg.SetHeader("Subject", "Verify Your Email Address")
 
-	verificationLink := fmt.Sprintf("%s/verify-email?token=%s", appURL, token)
+	// Using backend verification link for temporary solution until frontend is ready
+	verificationLink := fmt.Sprintf("%s/api/v1/users/verify-email?token=%s", appURL, token)
 
 	htmlBody := fmt.Sprintf(`
 		<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
@@ -45,6 +47,35 @@ func (m *mailer) SendVerificationEmail(toEmail string, token string, appURL stri
 			<p style="color: #555;">Best regards,<br/>The GOeShop Team</p>
 		</div>
 	`, verificationLink, verificationLink, verificationLink)
+
+	msg.SetBody("text/html", htmlBody)
+
+	dialer := gomail.NewDialer(m.host, m.port, m.user, m.pass)
+	dialer.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+
+	return dialer.DialAndSend(msg)
+}
+
+func (m *mailer) SendPasswordResetEmail(toEmail string, token string, appURL string) error {
+	msg := gomail.NewMessage()
+	msg.SetHeader("From", m.user)
+	msg.SetHeader("To", toEmail)
+	msg.SetHeader("Subject", "Reset Your Password")
+
+	// Using backend reset link for temporary solution until frontend is ready
+	resetLink := fmt.Sprintf("%s/api/v1/users/reset-password?token=%s", appURL, token)
+
+	htmlBody := fmt.Sprintf(`
+		<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+			<h2 style="color: #333;">Password Reset Request</h2>
+			<p style="color: #555;">We received a request to reset your password.</p>
+			<p style="color: #555;">If you made this request, please click the button below to reset your password:</p>
+			<div style="text-align: center; margin: 30px 0;">
+				<a href="%s" style="background-color: #007BFF; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-size: 16px;">Reset Password</a>
+			</div>
+			<p style="color: #555;">If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>
+		</div>
+	`, resetLink)
 
 	msg.SetBody("text/html", htmlBody)
 

@@ -49,6 +49,8 @@ func main() {
 	mux.HandleFunc("/api/v1/users/confirm-email", userHandler.ConfirmEmailHandler)
 	mux.HandleFunc("/api/v1/users/login", userHandler.LoginHandler)
 	mux.HandleFunc("/api/v1/users/resend-confirmation", userHandler.ResendConfirmationEmailHandler)
+	mux.HandleFunc("/api/v1/users/forgot-password", userHandler.ForgotPasswordHandler)
+	mux.HandleFunc("/api/v1/users/reset-password", userHandler.ResetPasswordHandler)
 	mux.HandleFunc("/docs/", httpSwagger.WrapHandler)
 
 	fmt.Printf("Server is running on port %s\n", cfg.Port)

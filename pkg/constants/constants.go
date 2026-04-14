@@ -17,6 +17,7 @@ const (
 const (
 	TokenTypeEmailConfirmation = "email_confirmation"
 	TokenTypeRefresh           = "refresh_token"
+	TokenTypePasswordReset     = "password_reset"
 )
 
 const (

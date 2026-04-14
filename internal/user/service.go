@@ -20,6 +20,8 @@ type UserService interface {
 	ConfirmEmail(ctx context.Context, tokenValue string) error
 	ResendConfirmationEmail(ctx context.Context, req ResendConfirmationRequest, appURL string) error
 	Login(ctx context.Context, req LoginRequest, jwtSecret string) (*LoginResponse, error)
+	ForgotPassword(ctx context.Context, req ForgotPasswordRequest, appURL string) error
+	ResetPassword(ctx context.Context, req ResetPasswordRequest) error
 }
 
 type userService struct {
@@ -209,6 +211,63 @@ func (s *userService) ResendConfirmationEmail(ctx context.Context, req ResendCon
 			}
 		}()
 	}
+
+	return nil
+}
+
+func (s *userService) ForgotPassword(ctx context.Context, req ForgotPasswordRequest, appURL string) error {
+	user, err := s.repo.GetUserByIdentifier(ctx, req.Email)
+	if err != nil {
+		return nil
+	}
+
+	_ = s.repo.DeleteUserTokensByType(ctx, user.ID, constants.TokenTypePasswordReset)
+
+	resetTokenString := uuid.New().String()
+	resetToken := UserToken{
+		UserID:        user.ID,
+		LoginProvider: constants.ProviderSystem,
+		TokenType:     constants.TokenTypePasswordReset,
+		TokenValue:    resetTokenString,
+		ExpiresAt:     time.Now().Add(15 * time.Minute),
+	}
+
+	if err := s.repo.CreateUserToken(ctx, &resetToken); err == nil {
+		go func() {
+			errMail := s.mailer.SendPasswordResetEmail(
+				user.Email,
+				resetTokenString,
+				appURL,
+			)
+			if errMail != nil {
+				fmt.Printf("Failed to send password reset email to %s: %v\n", user.Email, errMail)
+			}
+		}()
+	}
+
+	return nil
+}
+
+func (s *userService) ResetPassword(ctx context.Context, req ResetPasswordRequest) error {
+	token, err := s.repo.GetUserToken(ctx, req.Token, constants.TokenTypePasswordReset)
+	if err != nil {
+		return ErrTokenNotFound
+	}
+
+	if time.Now().After(token.ExpiresAt) {
+		return ErrTokenExpired
+	}
+
+	newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repo.UpdatePasswordHash(ctx, token.UserID, string(newHashedPassword)); err != nil {
+		return errors.New("failed to reset password")
+	}
+
+	_ = s.repo.DeleteUserToken(ctx, token.ID)
 
 	return nil
 }

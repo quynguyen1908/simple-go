@@ -35,6 +35,15 @@ type LoginResponse struct {
 	User         UserResponse `json:"user"`
 }
 
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=6,max=255"`
+}
+
 func (req *LoginRequest) Validate() []string {
 	var errMsgs []string
 	if err := validate.Struct(req); err != nil {

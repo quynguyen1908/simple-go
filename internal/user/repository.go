@@ -21,6 +21,8 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *User) error
 	CreateUserToken(ctx context.Context, token *UserToken) error
 
+	UpdatePasswordHash(ctx context.Context, userID uuid.UUID, newHash string) error
+
 	DeleteUserToken(ctx context.Context, tokenID uuid.UUID) error
 	DeleteUserTokensByType(ctx context.Context, userID uuid.UUID, tokenType string) error
 }
@@ -133,6 +135,12 @@ func (r *userRepository) CreateUser(ctx context.Context, user *User) error {
 
 func (r *userRepository) CreateUserToken(ctx context.Context, token *UserToken) error {
 	return r.db.WithContext(ctx).Create(token).Error
+}
+
+func (r *userRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUID, newHash string) error {
+	return r.db.WithContext(ctx).Model(&User{}).
+		Where("id = ?", userID).
+		Update("password_hash", newHash).Error
 }
 
 func (r *userRepository) DeleteUserToken(ctx context.Context, tokenID uuid.UUID) error {

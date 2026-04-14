@@ -15,6 +15,13 @@ definitions:
       message:
         type: string
     type: object
+  user.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
   user.LoginRequest:
     properties:
       identifier:
@@ -59,6 +66,18 @@ definitions:
     required:
     - email
     type: object
+  user.ResetPasswordRequest:
+    properties:
+      new_password:
+        maxLength: 255
+        minLength: 6
+        type: string
+      token:
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
   user.UserResponse:
     properties:
       email:
@@ -100,6 +119,36 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       summary: Confirm user email
+      tags:
+      - Users
+  /api/v1/users/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Request a password reset email
+      parameters:
+      - description: Forgot password request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Forgot password
       tags:
       - Users
   /api/v1/users/login:
@@ -204,6 +253,36 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       summary: Resend confirmation email
+      tags:
+      - Users
+  /api/v1/users/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Reset user password with a valid reset token
+      parameters:
+      - description: Reset password request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Reset password
       tags:
       - Users
 swagger: "2.0"
