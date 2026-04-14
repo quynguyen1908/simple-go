@@ -36,18 +36,19 @@ func main() {
 	mailService := mailer.NewMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass)
 
 	userRepo := user.NewUserRepository(db)
+	userService := user.NewUserService(userRepo, mailService)
+	userHandler := user.NewUserHandler(userService, cfg.AppURL, cfg.JWTSecretKey)
 
 	fmt.Println("Seeding roles...")
 	if err := userRepo.SeedRoles(context.Background()); err != nil {
 		log.Fatalf("Failed to seed roles: %v", err)
 	}
 
-	userService := user.NewUserService(userRepo, mailService)
-	userHandler := user.NewUserHandler(userService, cfg.AppURL)
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/users/register", userHandler.RegisterHandler)
 	mux.HandleFunc("/api/v1/users/confirm-email", userHandler.ConfirmEmailHandler)
+	mux.HandleFunc("/api/v1/users/login", userHandler.LoginHandler)
+	mux.HandleFunc("/api/v1/users/resend-confirmation", userHandler.ResendConfirmationEmailHandler)
 	mux.HandleFunc("/docs/", httpSwagger.WrapHandler)
 
 	fmt.Printf("Server is running on port %s\n", cfg.Port)

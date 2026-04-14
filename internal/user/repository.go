@@ -15,12 +15,14 @@ type UserRepository interface {
 	ConfirmUserEmail(ctx context.Context, userID uuid.UUID) error
 
 	GetRoleByName(ctx context.Context, roleName string) (*Role, error)
-	GetToken(ctx context.Context, tokenValue, tokenType string) (*UserToken, error)
+	GetUserToken(ctx context.Context, tokenValue, tokenType string) (*UserToken, error)
+	GetUserByIdentifier(ctx context.Context, identifier string) (*User, error)
 
 	CreateUser(ctx context.Context, user *User) error
 	CreateUserToken(ctx context.Context, token *UserToken) error
 
-	DeleteToken(ctx context.Context, tokenID uuid.UUID) error
+	DeleteUserToken(ctx context.Context, tokenID uuid.UUID) error
+	DeleteUserTokensByType(ctx context.Context, userID uuid.UUID, tokenType string) error
 }
 
 type userRepository struct {
@@ -96,7 +98,7 @@ func (r *userRepository) GetRoleByName(ctx context.Context, roleName string) (*R
 	return &role, nil
 }
 
-func (r *userRepository) GetToken(ctx context.Context, tokenValue, tokenType string) (*UserToken, error) {
+func (r *userRepository) GetUserToken(ctx context.Context, tokenValue, tokenType string) (*UserToken, error) {
 	var token UserToken
 
 	err := r.db.WithContext(ctx).
@@ -112,6 +114,19 @@ func (r *userRepository) GetToken(ctx context.Context, tokenValue, tokenType str
 	return &token, nil
 }
 
+func (r *userRepository) GetUserByIdentifier(ctx context.Context, identifier string) (*User, error) {
+	var user User
+
+	lowerIdentifier := strings.ToLower(identifier)
+
+	err := r.db.WithContext(ctx).
+		Preload("Role").
+		Where("normalized_email = ? OR normalized_username = ?", lowerIdentifier, lowerIdentifier).
+		First(&user).Error
+
+	return &user, err
+}
+
 func (r *userRepository) CreateUser(ctx context.Context, user *User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
@@ -120,6 +135,12 @@ func (r *userRepository) CreateUserToken(ctx context.Context, token *UserToken) 
 	return r.db.WithContext(ctx).Create(token).Error
 }
 
-func (r *userRepository) DeleteToken(ctx context.Context, tokenID uuid.UUID) error {
+func (r *userRepository) DeleteUserToken(ctx context.Context, tokenID uuid.UUID) error {
 	return r.db.WithContext(ctx).Delete(&UserToken{}, "id = ?", tokenID).Error
+}
+
+func (r *userRepository) DeleteUserTokensByType(ctx context.Context, userID uuid.UUID, tokenType string) error {
+	return r.db.WithContext(ctx).
+		Where("user_id = ? AND token_type = ?", userID, tokenType).
+		Delete(&UserToken{}).Error
 }

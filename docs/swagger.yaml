@@ -15,6 +15,25 @@ definitions:
       message:
         type: string
     type: object
+  user.LoginRequest:
+    properties:
+      identifier:
+        type: string
+      password:
+        type: string
+    required:
+    - identifier
+    - password
+    type: object
+  user.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/user.UserResponse'
+    type: object
   user.RegisterRequest:
     properties:
       email:
@@ -32,6 +51,13 @@ definitions:
     - email
     - password
     - username
+    type: object
+  user.ResendConfirmationRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
     type: object
   user.UserResponse:
     properties:
@@ -76,6 +102,45 @@ paths:
       summary: Confirm user email
       tags:
       - Users
+  /api/v1/users/login:
+    post:
+      consumes:
+      - application/json
+      description: Login with username and password to get JWT token
+      parameters:
+      - description: User login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/user.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Login user
+      tags:
+      - Users
   /api/v1/users/register:
     post:
       consumes:
@@ -113,6 +178,32 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       summary: Register a new user
+      tags:
+      - Users
+  /api/v1/users/resend-confirmation:
+    post:
+      consumes:
+      - application/json
+      description: Resend an email confirmation to the user
+      parameters:
+      - description: Resend confirmation email request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.ResendConfirmationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Resend confirmation email
       tags:
       - Users
 swagger: "2.0"

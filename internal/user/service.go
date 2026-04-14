@@ -10,6 +10,7 @@ import (
 	"golang/pkg/constants"
 	"golang/pkg/mailer"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -17,6 +18,8 @@ import (
 type UserService interface {
 	Register(ctx context.Context, req RegisterRequest, appURL string) (*UserResponse, error)
 	ConfirmEmail(ctx context.Context, tokenValue string) error
+	ResendConfirmationEmail(ctx context.Context, req ResendConfirmationRequest, appURL string) error
+	Login(ctx context.Context, req LoginRequest, jwtSecret string) (*LoginResponse, error)
 }
 
 type userService struct {
@@ -104,7 +107,7 @@ func (s *userService) ConfirmEmail(ctx context.Context, tokenValue string) error
 		return ErrInvalidToken
 	}
 
-	token, err := s.repo.GetToken(ctx, tokenValue, constants.TokenTypeEmailConfirmation)
+	token, err := s.repo.GetUserToken(ctx, tokenValue, constants.TokenTypeEmailConfirmation)
 	if err != nil {
 		return ErrTokenNotFound
 	}
@@ -117,7 +120,95 @@ func (s *userService) ConfirmEmail(ctx context.Context, tokenValue string) error
 		return errors.New("failed to confirm email")
 	}
 
-	_ = s.repo.DeleteToken(ctx, token.ID)
+	_ = s.repo.DeleteUserToken(ctx, token.ID)
+
+	return nil
+}
+
+func (s *userService) Login(ctx context.Context, req LoginRequest, jwtSecret string) (*LoginResponse, error) {
+	user, err := s.repo.GetUserByIdentifier(ctx, req.Identifier)
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	if err != nil {
+		return nil, errors.New("password or identifier is incorrect")
+	}
+
+	claims := jwt.MapClaims{
+		"sub":       user.ID.String(),
+		"role":      user.Role.Name,
+		"confirmed": user.EmailConfirmed,
+		"exp":       time.Now().Add(15 * time.Minute).Unix(),
+		"iat":       time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	accessToken, err := token.SignedString([]byte(jwtSecret))
+	if err != nil {
+		return nil, err
+	}
+
+	refreshTokenString := uuid.New().String()
+	userToken := UserToken{
+		UserID:        user.ID,
+		LoginProvider: constants.ProviderSystem,
+		TokenType:     constants.TokenTypeRefresh,
+		TokenValue:    refreshTokenString,
+		ExpiresAt:     time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	if err := s.repo.CreateUserToken(ctx, &userToken); err != nil {
+		return nil, err
+	}
+
+	res := &LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshTokenString,
+		User: UserResponse{
+			ID:       user.ID,
+			Username: user.Username,
+			Email:    user.Email,
+			Role:     user.Role.Name,
+		},
+	}
+
+	return res, nil
+}
+
+func (s *userService) ResendConfirmationEmail(ctx context.Context, req ResendConfirmationRequest, appURL string) error {
+	user, err := s.repo.GetUserByIdentifier(ctx, req.Email)
+	if err != nil {
+		return nil
+	}
+
+	if user.EmailConfirmed {
+		return errors.New("email is already confirmed")
+	}
+
+	_ = s.repo.DeleteUserTokensByType(ctx, user.ID, constants.TokenTypeEmailConfirmation)
+
+	verifyTokenString := uuid.New().String()
+	verifyToken := UserToken{
+		UserID:        user.ID,
+		LoginProvider: constants.ProviderSystem,
+		TokenType:     constants.TokenTypeEmailConfirmation,
+		TokenValue:    verifyTokenString,
+		ExpiresAt:     time.Now().Add(24 * time.Hour),
+	}
+
+	if err := s.repo.CreateUserToken(ctx, &verifyToken); err == nil {
+		go func() {
+			errMail := s.mailer.SendVerificationEmail(
+				user.Email,
+				verifyTokenString,
+				appURL,
+			)
+			if errMail != nil {
+				fmt.Printf("Failed to send verification email to %s: %v\n", user.Email, errMail)
+			}
+		}()
+	}
 
 	return nil
 }
